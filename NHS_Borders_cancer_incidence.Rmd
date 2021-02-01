@@ -1,0 +1,154 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+library(lubridate)
+```
+
+
+The number of new cancer registrations at NHS health board of residence being Borders. 
+Data available from Data and intelligence (Previously ISD Scotland) for 1994-2018 (25 years)
+The cancer registrations for 2019 are not published yet (normally would be by the end of Jan 2021)
+Cancer incidence is the total number of new cases (registrations) of the cancer diagnosed in Scotland for the given period.
+Cancer Screening data largely address standards and/or targets set by the Scottish Government in conjunction with the National Services Division, who run the Cancer Screening Programmes
+
+```{r}
+# read in data, downloaded from https://www.opendata.nhs.scot/dataset/annual-cancer-incidence/resource/3aef16b7-8af6-4ce0-a90b-8a29d6870014
+
+incidence_all_HB <- read_csv(here("data/new_cancer_incidence.csv")) %>% clean_names() 
+
+# filter Borders Health Board, Code S08000016
+incidence_borders <- incidence_all_HB %>% 
+  filter(hb == "S08000016")
+
+head(incidence_borders)
+```
+
+```{r}
+# list all years of diagnosis (1994-2018)
+years <- unique(incidence_borders$year)
+```
+
+```{r}
+# total number of new cancer registrations in each year (Borders only)
+total_new_cancers_registrations_years <- incidence_borders %>% 
+  filter(cancer_site == "All cancer types") %>% 
+  filter(sex == "All") %>% 
+  group_by(year) %>% 
+  summarise(total_new_cancers_registrations = sum(incidences_all_ages))
+
+# visualize time series
+# we can clearly see there is an upward trend
+total_new_cancers_registrations_years %>% 
+  #group_by(sex) %>% 
+  ggplot() +
+  aes(x = year, y = total_new_cancers_registrations) +
+  geom_line() +
+  geom_point() +
+  theme_bw() +
+  scale_x_continuous(labels = years, breaks = years) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(
+    x = "",
+    y = "new cancer registrations",
+    title = "Number of new cancer registrations, 1994-2018",
+    subtitle = "NHS Borders Health Board"
+  )
+```
+
+```{r}
+# total of all cancer registrations over the period of 25 years was 23385
+# calculated as total of All cancer types excluding Non-melanoma skin cancer plus Non-melanoma skin cancer (ICD10 codes "C00-C97, excluding C44" + "C44")
+# C00-C97, excluding C44 - All cancer types
+# C44 - Non-melanoma skin cancer
+# 17644	+ 5741 = 23385
+total_incidence_each_cancer_25_years_C44 <- incidence_borders %>% 
+  filter(cancer_site_icd10code == "C00-C97, excluding C44" | cancer_site_icd10code == "C44") %>% 
+  filter(sex == "All") %>% 
+  group_by(cancer_site) %>% 
+  summarise(total = sum(incidences_all_ages)) %>% 
+  arrange(desc(total))
+
+17644	+ 5741
+```
+
+```{r}
+# list all the ICD10 codes and related diagnosed cancer sites (51 + 1 (all cancer types))
+incidence_borders %>%  
+  distinct(cancer_site_icd10code, cancer_site) %>% 
+  arrange(cancer_site_icd10code) %>% 
+  as_tibble()
+
+# BUT! some of the categories are subsets of other categories!
+# We need to properly assign these subset categories to superset categories
+
+# # first resolve what is the superset in this set of three codes that overlap (rest is clear)
+# # total incidences_all_ages for the codes "C44", "C44, M-8090-8098" and "C44, M-8050-8078, M-8083-8084"
+# # C44 - Non-melanoma skin cancer (superset)
+# # C44, M-8090-8098 - Basal cell carcinoma of the skin (subset)
+# # C44, M-8050-8078, M-8083-8084 - Squamous cell carcinoma of the skin (subset)
+# incidence_borders %>%
+#   filter(cancer_site_icd10code %in% c("C44", "C44, M-8090-8098", "C44, M-8050-8078, M-8083-8084")) %>%
+#   group_by(cancer_site_icd10code) %>%
+#   summarise(total = sum(incidences_all_ages))
+
+incidence_borders_with_superset_categories <- incidence_borders %>% 
+  filter(cancer_site != "All cancer types") %>% 
+  select(-c(id, hb, sex_qf, crude_rate:sir_upper95pc_confidence_interval)) %>% 
+  mutate(
+    cancer_site_superset = case_when(
+      cancer_site_icd10code %in% c("C00-C14", "C01-C02", "C01-C06", "C01, C02.4, C05.1, C05.2, C09, C10", "C03-C06", "C07-C08") ~ "C00-C14, C30-C32", #Head and neck
+      cancer_site_icd10code %in% c("C18", "C19-C20") ~ "C18-C20", #Colorectal cancer
+      cancer_site_icd10code %in% c("C44, M-8050-8078, M-8083-8084", "C44, M-8090-8098") ~ "C44", #Non-melanoma skin cancer
+      cancer_site_icd10code %in% c("C53", "C54") ~ "C53-C55", #Uterus
+      cancer_site_icd10code %in% c("C70-C72, C75.1-C75.3", "C71", "D18.0, D32-D33, 
+                                   D35.2-D35.4, D42-D43, D44.3-D44.5") ~ "C70-C72, C75.1-C75.3, D18.0, D32-D33, D35.2-D35.4, D42-D43, D44.3-D44.5", #All brain and CNS tumours (malignant and non-malignant)
+      cancer_site_icd10code %in% c("C91.0", "C91.1", "C92.0", "C92.1-C92.2") ~ "C91-C95", #Leukaemias
+      cancer_site_icd10code %in% c("ICD-10 C47+C49") ~ "ICD-10 C40-C41, C47+C49", #Bone and connective tissue
+      TRUE ~ cancer_site
+    )
+  ) %>% 
+  mutate(
+    superset = case_when(
+      cancer_site_superset %in% c("C00-C14, C30-C32", "C18-C20", "C44", "C53-C55",
+                                   "C70-C72, C75.1-C75.3, D18.0, D32-D33, D35.2-D35.4, D42-D43, D44.3-D44.5", "C91-C95", "ICD-10 C40-C41, C47+C49") ~ FALSE,
+      TRUE ~ TRUE
+    )
+  )
+
+# list all the superset categories (there is 32 of them)
+incidence_borders_with_superset_categories %>% 
+  filter(superset == TRUE) %>% 
+  distinct(cancer_site)
+
+# total incidences of each cancer superset category in all ages
+# # Non-melanoma skin cancer - 11482
+# # Breast - 4966
+# # Trachea, bronchus and lung - 4882
+# # Colorectal cancer - 4872
+incidence_borders_with_superset_categories_totals <- incidence_borders_with_superset_categories %>% 
+  filter(superset == TRUE) %>% 
+  group_by(cancer_site) %>% 
+  summarise(total = sum(incidences_all_ages)) %>% 
+  arrange(desc(total)) %>% 
+  as_tibble()
+
+# visualize (cancer categories on y axis)
+incidence_borders_with_superset_categories_totals %>% 
+  ggplot() +
+  aes(x = reorder(cancer_site, total), y = total) %>% 
+  geom_col(stat = "identity", fill = "#f68060", width = 0.4) +
+  theme_bw() +
+  coord_flip() +
+  labs(
+    x = "",
+    y = "number of incidences",
+    title = "Cancer incidences overview, 1994-2018"
+  )
+```
+
