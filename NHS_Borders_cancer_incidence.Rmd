@@ -1,7 +1,20 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Incidence of cancer in NHS Borders"
+author: "Lenka Rozborilova"
+date: "4/2/2021"
+output: html_document
+df_print: paged
 ---
+
+```{r setup, include=FALSE}
+# Don't include messages and warnings in all of knitted file
+# by setting warning = F, and message = F in the setup chunk below
+# can add echo = F if don't want any code
+
+knitr::opts_chunk$set(echo = F,
+                      warning = F, message = F, 
+                      results = F) 
+```
 
 ```{r}
 library(tidyverse)
@@ -10,6 +23,10 @@ library(here)
 library(lubridate)
 ```
 
+Question:
+Please prepare a 1 to 2 page analysis summary answering the question below.
+
+In order to help inform the planning for provision of cancer treatment services in NHS Borders, we would like to gain better understanding of the incidence of cancer in NHS Borders.
 
 The number of new cancer registrations at NHS health board of residence being Borders. 
 Data available from Data and intelligence (Previously ISD Scotland) for 1994-2018 (25 years)
@@ -35,17 +52,17 @@ years <- unique(incidence_borders$year)
 ```
 
 ```{r}
-# total number of new cancer registrations in each year (Borders only)
+# total number of new cancer registrations (=incidences) in each year (Borders only)
+# All cancer types are excluding Non-melanoma skin cancer, need to add it
 total_new_cancers_registrations_years <- incidence_borders %>% 
-  filter(cancer_site == "All cancer types") %>% 
-  filter(sex == "All") %>% 
+  filter(cancer_site == "All cancer types" | cancer_site == "Non-melanoma skin cancer") %>% 
+  filter(sex %in% c("Female", "Male")) %>% 
   group_by(year) %>% 
   summarise(total_new_cancers_registrations = sum(incidences_all_ages))
 
 # visualize time series
-# we can clearly see there is an upward trend
+# we can clearly see there is an upward trend in registered incidences of cancer in NHS HB Borders
 total_new_cancers_registrations_years %>% 
-  #group_by(sex) %>% 
   ggplot() +
   aes(x = year, y = total_new_cancers_registrations) +
   geom_line() +
@@ -56,8 +73,8 @@ total_new_cancers_registrations_years %>%
   labs(
     x = "",
     y = "new cancer registrations",
-    title = "Number of new cancer registrations, 1994-2018",
-    subtitle = "NHS Borders Health Board"
+    title = "Incidence of cancer in NHS Borders, 1994-2018",
+    subtitle = "All cancer types, incl. non-melanoma skin cancer"
   )
 ```
 
@@ -67,19 +84,13 @@ total_new_cancers_registrations_years %>%
 # C00-C97, excluding C44 - All cancer types
 # C44 - Non-melanoma skin cancer
 # 17644	+ 5741 = 23385
-total_incidence_each_cancer_25_years_C44 <- incidence_borders %>% 
-  filter(cancer_site_icd10code == "C00-C97, excluding C44" | cancer_site_icd10code == "C44") %>% 
-  filter(sex == "All") %>% 
-  group_by(cancer_site) %>% 
-  summarise(total = sum(incidences_all_ages)) %>% 
-  arrange(desc(total))
-
-17644	+ 5741
+total_new_cancers_registrations_years %>% 
+  summarise(total_1994_2018 = sum(total_new_cancers_registrations))
 ```
 
 ```{r}
 # list all the ICD10 codes and related diagnosed cancer sites (51 + 1 (all cancer types))
-incidence_borders %>%  
+ICD10_codes <- incidence_borders %>%  
   distinct(cancer_site_icd10code, cancer_site) %>% 
   arrange(cancer_site_icd10code) %>% 
   as_tibble()
@@ -99,7 +110,7 @@ incidence_borders %>%
 
 incidence_borders_with_superset_categories <- incidence_borders %>% 
   filter(cancer_site != "All cancer types") %>% 
-  select(-c(id, hb, sex_qf, crude_rate:sir_upper95pc_confidence_interval)) %>% 
+  #select(-c(id, hb, sex_qf, crude_rate:sir_upper95pc_confidence_interval)) %>% 
   mutate(
     cancer_site_superset = case_when(
       cancer_site_icd10code %in% c("C00-C14", "C01-C02", "C01-C06", "C01, C02.4, C05.1, C05.2, C09, C10", "C03-C06", "C07-C08") ~ "C00-C14, C30-C32", #Head and neck
@@ -122,23 +133,29 @@ incidence_borders_with_superset_categories <- incidence_borders %>%
   )
 
 # list all the superset categories (there is 32 of them)
-incidence_borders_with_superset_categories %>% 
+all_superset_categories <- incidence_borders_with_superset_categories %>% 
   filter(superset == TRUE) %>% 
   distinct(cancer_site)
 
-# total incidences of each cancer superset category in all ages
-# # Non-melanoma skin cancer - 11482
-# # Breast - 4966
-# # Trachea, bronchus and lung - 4882
-# # Colorectal cancer - 4872
+# Total of incidences of each cancer superset category in all ages for both sexes throughout the years 1994 to 2018 
+# # Non-melanoma skin cancer - 5741
+# # Breast - 2483
+# # Trachea, bronchus and lung - 2441
+# # Colorectal cancer - 2436
+# # Prostate - 2119
+# # Carcinoma in situ of the cervix uteri - 1386
 incidence_borders_with_superset_categories_totals <- incidence_borders_with_superset_categories %>% 
+  filter(sex %in% c("Female", "Male")) %>% 
+  #filter(sex == "All") %>% 
   filter(superset == TRUE) %>% 
   group_by(cancer_site) %>% 
   summarise(total = sum(incidences_all_ages)) %>% 
   arrange(desc(total)) %>% 
   as_tibble()
+incidence_borders_with_superset_categories_totals
 
 # visualize (cancer categories on y axis)
+# The number of new cancer registrations for each cancer site between years 1994 and 2018
 incidence_borders_with_superset_categories_totals %>% 
   ggplot() +
   aes(x = reorder(cancer_site, total), y = total) %>% 
@@ -148,7 +165,247 @@ incidence_borders_with_superset_categories_totals %>%
   labs(
     x = "",
     y = "number of incidences",
-    title = "Cancer incidences overview, 1994-2018"
+    title = "Incidence of cancer in NHS Borders",
+    subtitle = "Frequency overview of cancer sites, 1994-2018"
   )
+```
+
+What is the Crude rate?
+  - is calculated by dividing the number of new cancers observed during a given time period by the corresponding number of people in the population at risk
+  - in our cancer case, the result is expressed as an annual rate per 100,000 persons at risk.
+
+What is the European age-standardised rate (EASR)? 
+  - proportion of total population in each five year age class (age group 0-4 8k, 5-9 7k,..., 85 and over 1k, total = 100k)
+  - the rates are calculated by applying the age-specific rates for the location being studied to a theoretical European standard population, expressed per 100,000 persons per year
+  - (World age-standardised rate (WASR))
+  
+What is the Standardised Incidence Ratio (SIR)?  
+  - tells us if the number of observed cancer cases in a particular geographic area is higher or lower than expected
+  - the SIR is obtained by dividing the observed number of cases of cancer by the “expected” number of cases
+  
+```{r}
+# rates: crude_rate, easr, standardised_incidence_ratio
+
+# skin cancer
+skin_cancer_rates <- incidence_borders_with_superset_categories %>%
+  filter(superset == TRUE) %>% 
+  filter(cancer_site %in% c("Non-melanoma skin cancer",
+                            "Malignant melanoma of the skin")) %>%
+  select(cancer_site, sex, year, incidences_all_ages, crude_rate, easr, standardised_incidence_ratio, cancer_site_superset, superset) %>%
+  group_by(cancer_site)
+
+# visualize skin
+skin_cancer_rates %>%
+  filter(sex == "All") %>%
+  group_by(year) %>%
+  ggplot() +
+    aes(x = year, y = crude_rate, colour = cancer_site) +
+    geom_line(aes(group = cancer_site)) +
+    theme_bw() +
+    scale_colour_discrete("Types of skin cancer") +
+    scale_x_continuous(labels = years, breaks = years) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    labs(
+      x = "",
+      y = "crude rate",
+      title = "Incidence of skin cancer in NHS Borders, 1994-2018"
+    )
+```
+
+```{r}
+# top 6 cancer sites with the highest frequency of incidence between years 1994 and 2018
+# # Non-melanoma skin cancer - 5741
+# # Breast - 2483
+# # Trachea, bronchus and lung - 2441
+# # Colorectal cancer - 2436
+# # Prostate - 2119
+# # Carcinoma in situ of the cervix uteri - 1386
+incidence_borders_with_superset_categories_totals %>% 
+  head(6)
+
+top_6_cancer_sites <- incidence_borders_with_superset_categories_totals %>% 
+  head(6) %>% 
+  select(cancer_site) %>% 
+  pull()
+
+# top 6 cancer sites with the highest frequency of incidence between years 1994 and 2018, with all details
+top_six_cancer_sites_rates <- incidence_borders_with_superset_categories %>% 
+  filter(superset == TRUE) %>% 
+  filter(cancer_site %in% top_6_cancer_sites) %>% 
+  select(cancer_site, sex, year, incidences_all_ages, crude_rate, easr, standardised_incidence_ratio, cancer_site_superset, superset) %>% 
+  group_by(cancer_site) 
+
+# To change plot order of facet wrap, need to change the order of variable levels with factor()
+top_six_cancer_sites_rates$cancer_site <- factor(top_six_cancer_sites_rates$cancer_site, levels = c("Non-melanoma skin cancer",
+                            "Breast",
+                            "Trachea, bronchus and lung",
+                            "Colorectal cancer",
+                            "Prostate",
+                            "Carcinoma in situ of the cervix uteri"))
+
+# as for instance cancer sites Breast or Prostate has value 0 of variable incidences_all_ages in sex category All, 
+# I need to use both sexes and calculate and adjust the rates proportionally
+top_six_cancer_sites_rates_adjusted <- top_six_cancer_sites_rates %>% 
+  pivot_longer(
+    cols = c(crude_rate, standardised_incidence_ratio),
+    names_to = "metric",
+    values_to = "metric_value"
+  ) %>% 
+  filter(sex %in% c("Female", "Male")) %>% 
+  group_by(year, sex, cancer_site, incidences_all_ages, metric) %>% 
+  summarise(total = sum(metric_value)) %>% 
+  #filter(cancer_site == "Breast") %>% 
+  as_tibble() %>% 
+  mutate(
+    total_gender = incidences_all_ages * total
+  ) %>% 
+  group_by(year, cancer_site, metric) %>% 
+  summarise(metric_value_both_gender = sum(total_gender)/sum(incidences_all_ages))
+
+## close look at 2018
+# # Non-melanoma skin cancer	crude_rate	336.33996		
+# # Non-melanoma skin cancer	standardised_incidence_ratio	108.23833		
+# # Breast	crude_rate	163.62747		
+# # Breast	standardised_incidence_ratio	78.47573
+top_six_cancer_sites_rates_adjusted_2018 <- top_six_cancer_sites_rates %>% 
+  filter(year == 2018) %>% 
+  pivot_longer(
+    cols = c(crude_rate, standardised_incidence_ratio),
+    names_to = "metric",
+    values_to = "metric_value"
+  ) %>% 
+  filter(sex %in% c("Female", "Male")) %>% 
+  group_by(sex, cancer_site, incidences_all_ages, metric) %>% 
+  summarise(total = sum(metric_value)) %>% 
+  mutate(
+    total_gender = incidences_all_ages * total
+  ) %>% 
+  group_by(cancer_site, metric) %>% 
+  summarise(metric_value_both_gender = sum(total_gender)/sum(incidences_all_ages))
+
+# visualize top 6 cancer sites, multi-panel plots, looking at Crude rate and Standardised Incidence Ratio (SIR) throughout 1994-2018
+# explain what both metrics mean and what SIR higher than 100% means
+## Non-melanoma skin cancer is the most commonly occurring cancer in the UK, followed by breast cancer. 
+## In 2018, there were XY new cases 
+top_six_cancer_sites_rates_adjusted %>% 
+  ggplot() +
+    aes(x = year, y = metric_value_both_gender, group = metric, colour = metric) +
+    geom_line() +
+    theme_bw() +
+    scale_x_continuous(labels = years, breaks = years) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    facet_wrap(~cancer_site, ncol = 2) +
+    scale_color_manual(name = "Metric", 
+                       labels = c("crude_rate" = "CR", "standardised_incidence_ratio" = "SIR"),
+                       values = c("crude_rate" = "#F8766D", "standardised_incidence_ratio" = "#00BFC4")) +
+    labs(
+      x = "",
+      y = "percentage (%)",
+      title = "Crude Rate (CR) and Standardised Incidence Ratio (SIR), \nNHS Borders, 1994-2018",
+      subtitle = "For top 6 cancer sites by incidences in last 25 years"
+    )
+```
+
+```{r}
+# look at the most extreme SIR in last 5 years
+SIR_2013_2018 <- incidence_borders_with_superset_categories %>% 
+  filter(year >= 2013) %>%
+  filter(standardised_incidence_ratio > 0) %>% 
+  filter(superset == TRUE) %>% 
+  pivot_longer(
+    cols = c(crude_rate, standardised_incidence_ratio),
+    names_to = "metric",
+    values_to = "metric_value"
+  ) %>% 
+  filter(sex %in% c("Female", "Male")) %>% 
+  group_by(year, sex, cancer_site, incidences_all_ages, metric) %>% 
+  summarise(total = sum(metric_value)) %>% 
+  mutate(
+    total_gender = incidences_all_ages * total
+  ) %>% 
+  group_by(year, cancer_site, metric) %>% 
+  summarise(metric_value_both_gender = sum(total_gender)/sum(incidences_all_ages)) %>% 
+  filter(metric == "standardised_incidence_ratio") %>% 
+  group_by(cancer_site) %>% 
+  summarise(SIR_avg_2013_2018 = sum(metric_value_both_gender)/5) %>% 
+  arrange(desc(SIR_avg_2013_2018))
+```
+
+
+```{r}
+# top 6 cancer sites with the highest SIR in last 5 years (2013-2018)
+# # Thyroid	227.4784			
+# # Hodgkin lymphoma	195.9399			
+# # Bone and articular cartilage	187.9386			
+# # Multiple myeloma and malignant plasma cell neoplasms	173.2608			
+# # Non-Hodgkin lymphoma	160.5566			
+# # Malignant melanoma of the skin	147.4512	
+SIR_2013_2018 %>% 
+  head(6)
+
+top_6_cancer_sites_SIR <- SIR_2013_2018 %>% 
+  head(6) %>% 
+  select(cancer_site) %>% 
+  pull()
+  
+# top 6 cancer sites with the highest SIR in last 5 years (2013-2018), with all details
+top_six_cancer_sites_SIR_rates <- incidence_borders_with_superset_categories %>% 
+  filter(superset == TRUE) %>% 
+  filter(cancer_site %in% top_6_cancer_sites_SIR) %>% 
+  select(cancer_site, sex, year, incidences_all_ages, crude_rate, easr, standardised_incidence_ratio, cancer_site_superset, superset) %>% 
+  group_by(cancer_site) 
+
+# To change plot order of facet wrap, need to change the order of variable levels with factor()
+top_six_cancer_sites_SIR_rates$cancer_site <- factor(top_six_cancer_sites_SIR_rates$cancer_site, levels = c("Thyroid",
+                            "Hodgkin lymphoma",
+                            "Bone and articular cartilage",
+                            "Multiple myeloma and malignant plasma cell neoplasms",
+                            "Non-Hodgkin lymphoma",
+                            "Malignant melanoma of the skin"))
+
+# as for instance cancer sites Breast or Prostate has value 0 of variable incidences_all_ages in sex category All, 
+# I need to use both sexes and calculate and adjust the rates proportionally
+top_six_cancer_sites_SIR_rates_adjusted <- top_six_cancer_sites_SIR_rates %>% 
+  pivot_longer(
+    cols = c(crude_rate, standardised_incidence_ratio),
+    names_to = "metric",
+    values_to = "metric_value"
+  ) %>% 
+  filter(sex %in% c("Female", "Male")) %>% 
+  group_by(year, sex, cancer_site, incidences_all_ages, metric) %>% 
+  summarise(total = sum(metric_value)) %>% 
+  #filter(cancer_site == "Breast") %>% 
+  as_tibble() %>% 
+  mutate(
+    total_gender = incidences_all_ages * total
+  ) %>% 
+  group_by(year, cancer_site, metric) %>% 
+  summarise(metric_value_both_gender = sum(total_gender)/sum(incidences_all_ages))
+
+# visualize top 6 cancer sites with the highest SIR in last 5 years, multi-panel plots, looking at Crude rate and Standardised Incidence Ratio (SIR) throughout 1994-2018
+# explain what both metrics mean and what SIR higher than 100% means
+top_six_cancer_sites_SIR_rates_adjusted %>% 
+  ggplot() +
+    aes(x = year, y = metric_value_both_gender, group = metric, colour = metric) +
+    geom_line() +
+    theme_bw() +
+    scale_x_continuous(labels = years, breaks = years) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    facet_wrap(~cancer_site, ncol = 2) +
+    scale_color_manual(name = "Metric", 
+                       labels = c("crude_rate" = "CR", "standardised_incidence_ratio" = "SIR"),
+                       values = c("crude_rate" = "#F8766D", "standardised_incidence_ratio" = "#00BFC4")) +
+    labs(
+      x = "",
+      y = "percentage (%)",
+      title = "Crude Rate (CR) and Standardised Incidence Ratio (SIR), \nNHS Borders, 1994-2018",
+      subtitle = "For top 6 cancer sites with the highest SIR in last 5 years"
+    )
+```
+
+model prediction
+
+```{r}
+
 ```
 
