@@ -23,20 +23,10 @@ library(here)
 library(lubridate)
 ```
 
-Question:
-Please prepare a 1 to 2 page analysis summary answering the question below.
-
-In order to help inform the planning for provision of cancer treatment services in NHS Borders, we would like to gain better understanding of the incidence of cancer in NHS Borders.
-
-The number of new cancer registrations at NHS health board of residence being Borders. 
-Data available from Data and intelligence (Previously ISD Scotland) for 1994-2018 (25 years)
-The cancer registrations for 2019 are not published yet (normally would be by the end of Jan 2021)
-Cancer incidence is the total number of new cases (registrations) of the cancer diagnosed in Scotland for the given period.
-Cancer Screening data largely address standards and/or targets set by the Scottish Government in conjunction with the National Services Division, who run the Cancer Screening Programmes
+Following analysis is based on data available from The Scottish Health and Social Care Open Data platform, https://www.opendata.nhs.scot/dataset/annual-cancer-incidence 
 
 ```{r}
 # read in data, downloaded from https://www.opendata.nhs.scot/dataset/annual-cancer-incidence/resource/3aef16b7-8af6-4ce0-a90b-8a29d6870014
-
 incidence_all_HB <- read_csv(here("data/new_cancer_incidence.csv")) %>% clean_names() 
 
 # filter Borders Health Board, Code S08000016
@@ -48,8 +38,10 @@ head(incidence_borders)
 
 ```{r}
 # list all years of diagnosis (1994-2018)
-years <- unique(incidence_borders$year)
+years <- unique(incidence_borders$year) %>% sort()
 ```
+
+Upward trend in the incidences of cancer in NHS Borders between years 1994 and 2018:
 
 ```{r}
 # total number of new cancer registrations (=incidences) in each year (Borders only)
@@ -78,6 +70,8 @@ total_new_cancers_registrations_years %>%
   )
 ```
 
+Number of all cancer registrations (incl. non-melanoma skin cancer) between years 1994 and 2018 (period of 25 years) was 23385.
+
 ```{r}
 # total of all cancer registrations over the period of 25 years was 23385
 # calculated as total of All cancer types excluding Non-melanoma skin cancer plus Non-melanoma skin cancer (ICD10 codes "C00-C97, excluding C44" + "C44")
@@ -87,6 +81,7 @@ total_new_cancers_registrations_years %>%
 total_new_cancers_registrations_years %>% 
   summarise(total_1994_2018 = sum(total_new_cancers_registrations))
 ```
+Summary of all incidences of cancer diagnosed in NHS Borders, broken down by cancer sites for all ages and for both sexes throughout the years 1994 to 2018 (32 categories):
 
 ```{r}
 # list all the ICD10 codes and related diagnosed cancer sites (51 + 1 (all cancer types))
@@ -97,16 +92,6 @@ ICD10_codes <- incidence_borders %>%
 
 # BUT! some of the categories are subsets of other categories!
 # We need to properly assign these subset categories to superset categories
-
-# # first resolve what is the superset in this set of three codes that overlap (rest is clear)
-# # total incidences_all_ages for the codes "C44", "C44, M-8090-8098" and "C44, M-8050-8078, M-8083-8084"
-# # C44 - Non-melanoma skin cancer (superset)
-# # C44, M-8090-8098 - Basal cell carcinoma of the skin (subset)
-# # C44, M-8050-8078, M-8083-8084 - Squamous cell carcinoma of the skin (subset)
-# incidence_borders %>%
-#   filter(cancer_site_icd10code %in% c("C44", "C44, M-8090-8098", "C44, M-8050-8078, M-8083-8084")) %>%
-#   group_by(cancer_site_icd10code) %>%
-#   summarise(total = sum(incidences_all_ages))
 
 incidence_borders_with_superset_categories <- incidence_borders %>% 
   filter(cancer_site != "All cancer types") %>% 
@@ -152,7 +137,6 @@ incidence_borders_with_superset_categories_totals <- incidence_borders_with_supe
   summarise(total = sum(incidences_all_ages)) %>% 
   arrange(desc(total)) %>% 
   as_tibble()
-incidence_borders_with_superset_categories_totals
 
 # visualize (cancer categories on y axis)
 # The number of new cancer registrations for each cancer site between years 1994 and 2018
@@ -165,23 +149,41 @@ incidence_borders_with_superset_categories_totals %>%
   labs(
     x = "",
     y = "number of incidences",
-    title = "Incidence of cancer in NHS Borders",
-    subtitle = "Frequency overview of cancer sites, 1994-2018"
+    title = "Overview of the frequency of cancer sites",
+    subtitle = "NHS Borders, 1994-2018"
   )
 ```
 
-What is the Crude rate?
-  - is calculated by dividing the number of new cancers observed during a given time period by the corresponding number of people in the population at risk
-  - in our cancer case, the result is expressed as an annual rate per 100,000 persons at risk.
 
-What is the European age-standardised rate (EASR)? 
-  - proportion of total population in each five year age class (age group 0-4 8k, 5-9 7k,..., 85 and over 1k, total = 100k)
-  - the rates are calculated by applying the age-specific rates for the location being studied to a theoretical European standard population, expressed per 100,000 persons per year
-  - (World age-standardised rate (WASR))
-  
-What is the Standardised Incidence Ratio (SIR)?  
-  - tells us if the number of observed cancer cases in a particular geographic area is higher or lower than expected
-  - the SIR is obtained by dividing the observed number of cases of cancer by the “expected” number of cases
+Note: Some of the cancer site categories also include sub-categories, please see the footnote for more detail:^[Non-melanoma skin cancer (incl. Squamous cell carcinoma of the skin, Basal cell carcinoma of the skin); <br>
+Colorectal cancer (incl. Colon, Rectum and rectosigmoid junction);<br>
+Uterus (incl. Cervix uteri, Corpus uteri);<br>
+Leukaemias (incl. Acute lymphoblastic leukaemia, Chronic lymphocytic leukaemia, Acute myeloid leukaemia, Chronic myeloid leukaemia);<br>
+All brain and CNS tumours (malignant and non-malignant) (incl. Malig brain ca (incl pit. gland, cranio. duct, pineal gland), Malignant brain cancer, Non-malig brain ca (incl pit.gland,cranio.duct,pineal gland));<br>
+Head and neck (incl. Lip, oral cavity and pharynx, Tongue, Oropharyngeal cancers, Mouth (IARC definition), Salivary glands);<br>
+Bone and connective tissue (incl. Connective tissue)]
+
+<details>
+<summary>**Number of cancer incidences for the six most common cancer sites diagnosed between years 1994 and 2018**</summary>
+
+```{r results = T}
+incidence_borders_with_superset_categories_totals %>% 
+  head(6) %>% 
+  as_tibble()
+
+# # Non-melanoma skin cancer - 5741
+# # Breast - 2483
+# # Trachea, bronchus and lung - 2441
+# # Colorectal cancer - 2436
+# # Prostate - 2119
+# # Carcinoma in situ of the cervix uteri - 1386
+```
+
+</details>
+<br>
+
+Non-melanoma skin cancer was the most diagnosed cancer site in the NHS Borders with Malignant melanoma being the 7th most diagnosed cancer site.
+Following graph is showing the Crude Rate^[calculated by dividing the number of new cancers observed during each year by the corresponding number of people in the population at risk] of both types of skin cancer:
   
 ```{r}
 # rates: crude_rate, easr, standardised_incidence_ratio
@@ -202,27 +204,20 @@ skin_cancer_rates %>%
     aes(x = year, y = crude_rate, colour = cancer_site) +
     geom_line(aes(group = cancer_site)) +
     theme_bw() +
-    scale_colour_discrete("Types of skin cancer") +
+    scale_colour_discrete("Type of skin cancer") +
     scale_x_continuous(labels = years, breaks = years) +
     theme(axis.text.x = element_text(angle = 90)) +
     labs(
       x = "",
-      y = "crude rate",
-      title = "Incidence of skin cancer in NHS Borders, 1994-2018"
+      y = "rate per 100,000 persons at risk",
+      title = "Crude rate of skin cancer in NHS Borders, 1994-2018"
     )
 ```
 
-```{r}
-# top 6 cancer sites with the highest frequency of incidence between years 1994 and 2018
-# # Non-melanoma skin cancer - 5741
-# # Breast - 2483
-# # Trachea, bronchus and lung - 2441
-# # Colorectal cancer - 2436
-# # Prostate - 2119
-# # Carcinoma in situ of the cervix uteri - 1386
-incidence_borders_with_superset_categories_totals %>% 
-  head(6)
+Crude rate and Standardised Incidence Ratio^[obtained by dividing the observed number of cases of cancer by the “expected” number of cases, tells us if the number of observed cancer cases in a particular geographic area is higher or lower than expected] for the six most common cancer sites diagnosed between years 1994 and 2018:
 
+```{r}
+# vector of top 6 cancer sites with the highest frequency of incidence between years 1994 and 2018
 top_6_cancer_sites <- incidence_borders_with_superset_categories_totals %>% 
   head(6) %>% 
   select(cancer_site) %>% 
@@ -262,6 +257,30 @@ top_six_cancer_sites_rates_adjusted <- top_six_cancer_sites_rates %>%
   group_by(year, cancer_site, metric) %>% 
   summarise(metric_value_both_gender = sum(total_gender)/sum(incidences_all_ages))
 
+# visualize top 6 cancer sites, multi-panel plots, looking at Crude rate and Standardised Incidence Ratio (SIR) throughout 1994-2018
+# explain what both metrics mean and what SIR higher than 100% means
+## Non-melanoma skin cancer is the most commonly occurring cancer in the UK, followed by breast cancer. 
+## In 2018, there were XY new cases 
+top_six_cancer_sites_rates_adjusted %>% 
+  ggplot() +
+    aes(x = year, y = metric_value_both_gender, group = metric, colour = metric) +
+    geom_line() +
+    theme_bw() +
+    scale_x_continuous(labels = years, breaks = years) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    facet_wrap(~cancer_site, ncol = 2) +
+    scale_color_manual(name = "Metric", 
+                       labels = c("crude_rate" = "CR", "standardised_incidence_ratio" = "SIR"),
+                       values = c("crude_rate" = "#F8766D", "standardised_incidence_ratio" = "#00BFC4")) +
+    labs(
+      x = "",
+      y = "",
+      title = "Crude Rate (CR) and Standardised Incidence Ratio (SIR), \nNHS Borders, 1994-2018",
+      subtitle = "For top 6 cancer sites by incidences in last 25 years"
+    )
+```
+
+```{r}
 ## close look at 2018
 # # Non-melanoma skin cancer	crude_rate	336.33996		
 # # Non-melanoma skin cancer	standardised_incidence_ratio	108.23833		
@@ -282,28 +301,6 @@ top_six_cancer_sites_rates_adjusted_2018 <- top_six_cancer_sites_rates %>%
   ) %>% 
   group_by(cancer_site, metric) %>% 
   summarise(metric_value_both_gender = sum(total_gender)/sum(incidences_all_ages))
-
-# visualize top 6 cancer sites, multi-panel plots, looking at Crude rate and Standardised Incidence Ratio (SIR) throughout 1994-2018
-# explain what both metrics mean and what SIR higher than 100% means
-## Non-melanoma skin cancer is the most commonly occurring cancer in the UK, followed by breast cancer. 
-## In 2018, there were XY new cases 
-top_six_cancer_sites_rates_adjusted %>% 
-  ggplot() +
-    aes(x = year, y = metric_value_both_gender, group = metric, colour = metric) +
-    geom_line() +
-    theme_bw() +
-    scale_x_continuous(labels = years, breaks = years) +
-    theme(axis.text.x = element_text(angle = 90)) +
-    facet_wrap(~cancer_site, ncol = 2) +
-    scale_color_manual(name = "Metric", 
-                       labels = c("crude_rate" = "CR", "standardised_incidence_ratio" = "SIR"),
-                       values = c("crude_rate" = "#F8766D", "standardised_incidence_ratio" = "#00BFC4")) +
-    labs(
-      x = "",
-      y = "percentage (%)",
-      title = "Crude Rate (CR) and Standardised Incidence Ratio (SIR), \nNHS Borders, 1994-2018",
-      subtitle = "For top 6 cancer sites by incidences in last 25 years"
-    )
 ```
 
 ```{r}
@@ -397,15 +394,8 @@ top_six_cancer_sites_SIR_rates_adjusted %>%
                        values = c("crude_rate" = "#F8766D", "standardised_incidence_ratio" = "#00BFC4")) +
     labs(
       x = "",
-      y = "percentage (%)",
+      y = "",
       title = "Crude Rate (CR) and Standardised Incidence Ratio (SIR), \nNHS Borders, 1994-2018",
       subtitle = "For top 6 cancer sites with the highest SIR in last 5 years"
     )
 ```
-
-model prediction
-
-```{r}
-
-```
-
