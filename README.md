@@ -12,8 +12,8 @@ The analysis was carried out using the statistical programming language R. The c
 ### An example of included visualizations:
 * Overview of the frequency of the cancer sites (NHS Borders, 1994-2018)
 
-![](graphs/plot_2_png)
+<a href="url"><img src="https://github.com/LenkaRo/cancer_rates_borders_project/blob/main/graphs/plot_2.png" height="400" width="600" ></a>
 
 * Crude Rate and Standardised Incidence Ratio for 6 most frequent cancer sites by incidence (NHS Borders, 1994-2018)
 
-![](graphs/plot_4_png)
+<a href="url"><img src="https://github.com/LenkaRo/cancer_rates_borders_project/blob/main/graphs/plot_4.png" height="400" width="650" ></a>
