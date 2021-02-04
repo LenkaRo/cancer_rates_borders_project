@@ -12,8 +12,8 @@ The analysis was carried out using the statistical programming language R. The c
 ### An example of included visualizations:
 * Overview of the frequency of the cancer sites (NHS Borders, 1994-2018)
 
-![](/Users/codeclanstudent/codeclan_projects/NHS_cancer_incidence_project/graphs/plot_2_png)
+![](graphs/plot_2_png)
 
 * Crude Rate and Standardised Incidence Ratio for 6 most frequent cancer sites by incidence (NHS Borders, 1994-2018)
 
-![](/Users/codeclanstudent/codeclan_projects/NHS_cancer_incidence_project/graphs/plot_4_png)
+![](graphs/plot_4_png)
