@@ -1,8 +1,11 @@
 ---
 title: "Incidence of cancer in NHS Borders"
+subtitle: "Data Analysis using R"
 author: "Lenka Rozborilova"
 date: "4/2/2021"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 df_print: paged
 ---
 
@@ -81,6 +84,7 @@ Number of all cancer registrations (incl. non-melanoma skin cancer) between year
 total_new_cancers_registrations_years %>% 
   summarise(total_1994_2018 = sum(total_new_cancers_registrations))
 ```
+\newpage
 Summary of all incidences of cancer diagnosed in NHS Borders, broken down by cancer sites for all ages and for both sexes throughout the years 1994 to 2018 (32 categories):
 
 ```{r}
@@ -155,7 +159,7 @@ incidence_borders_with_superset_categories_totals %>%
 ```
 
 
-Note: Some of the cancer site categories also include sub-categories, please see the footnote for more detail:^[Non-melanoma skin cancer (incl. Squamous cell carcinoma of the skin, Basal cell carcinoma of the skin); <br>
+Note: Some of the cancer site categories also include sub-categories, please see the footnote for more detail:^[Non-melanoma skin cancer (incl. Squamous cell carcinoma of the skin, Basal cell carcinoma of the skin);
 Colorectal cancer (incl. Colon, Rectum and rectosigmoid junction);<br>
 Uterus (incl. Cervix uteri, Corpus uteri);<br>
 Leukaemias (incl. Acute lymphoblastic leukaemia, Chronic lymphocytic leukaemia, Acute myeloid leukaemia, Chronic myeloid leukaemia);<br>
@@ -180,8 +184,8 @@ incidence_borders_with_superset_categories_totals %>%
 ```
 
 </details>
-<br>
 
+\newpage
 Non-melanoma skin cancer was the most diagnosed cancer site in the NHS Borders with Malignant melanoma being the 7th most diagnosed cancer site.
 Following graph is showing the Crude Rate^[calculated by dividing the number of new cancers observed during each year by the corresponding number of people in the population at risk] of both types of skin cancer:
   
@@ -209,12 +213,13 @@ skin_cancer_rates %>%
     theme(axis.text.x = element_text(angle = 90)) +
     labs(
       x = "",
-      y = "rate per 100,000 persons at risk",
+      y = "rate (per 100,000 persons)",
       title = "Crude rate of skin cancer in NHS Borders, 1994-2018"
     )
 ```
 
-Crude rate and Standardised Incidence Ratio^[obtained by dividing the observed number of cases of cancer by the “expected” number of cases, tells us if the number of observed cancer cases in a particular geographic area is higher or lower than expected] for the six most common cancer sites diagnosed between years 1994 and 2018:
+\newpage
+Crude rate and Standardised Incidence Ratio^[obtained by dividing the observed number of cases of cancer by the “expected” number of cases, tells us if the number of observed cancer cases in a particular geographic area is higher or lower than expected] for the six **most common cancer sites** diagnosed between years 1994 and 2018:
 
 ```{r}
 # vector of top 6 cancer sites with the highest frequency of incidence between years 1994 and 2018
@@ -274,7 +279,7 @@ top_six_cancer_sites_rates_adjusted %>%
                        values = c("crude_rate" = "#F8766D", "standardised_incidence_ratio" = "#00BFC4")) +
     labs(
       x = "",
-      y = "",
+      y = "ratio",
       title = "Crude Rate (CR) and Standardised Incidence Ratio (SIR), \nNHS Borders, 1994-2018",
       subtitle = "For top 6 cancer sites by incidences in last 25 years"
     )
@@ -302,6 +307,10 @@ top_six_cancer_sites_rates_adjusted_2018 <- top_six_cancer_sites_rates %>%
   group_by(cancer_site, metric) %>% 
   summarise(metric_value_both_gender = sum(total_gender)/sum(incidences_all_ages))
 ```
+
+\newpage
+
+Crude rate and Standardised Incidence Ratio for the six cancer sites with the **most extreme SIR** in last 5 years (2013-2018) and visualised the rates again
 
 ```{r}
 # look at the most extreme SIR in last 5 years
@@ -394,8 +403,18 @@ top_six_cancer_sites_SIR_rates_adjusted %>%
                        values = c("crude_rate" = "#F8766D", "standardised_incidence_ratio" = "#00BFC4")) +
     labs(
       x = "",
-      y = "",
+      y = "ratio",
       title = "Crude Rate (CR) and Standardised Incidence Ratio (SIR), \nNHS Borders, 1994-2018",
       subtitle = "For top 6 cancer sites with the highest SIR in last 5 years"
     )
 ```
+
+**Conclusion:**
+Based on the data analysis on incidences of cancer diagnosed in NHS Borders over the period of 25 years (1994-2018), I suggest to allocate future  
+provision of cancer treatment services in NHS Borders focusing on cancer sites: \newline
+* Thyroid \newline 
+* Hodgkin and Non-Hodgkin lymphoma \newline
+* Bone and articular cartilage \newline
+* Multiple myeloma and malignant plasma cell neoplasm.\newline
+
+Concidering the high frequency of skin cancer being diagnosed, I would also suggest to focus on increasing the awareness of this type of cancer among public as these are, in many cases, preventable types of cancer.
